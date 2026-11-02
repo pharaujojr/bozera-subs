@@ -1,0 +1,61 @@
+# Volumes do Jellyfin e da mídia ficam no docker-compose.override.yml, gerado pelo setup.py.
+name: bozera-subs
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    user: "${PUID:?rode python3 setup.py primeiro}:${PGID:?rode python3 setup.py primeiro}"
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${PORT:-8765}:8000"
+    environment:
+      REDIS_URL: "redis://redis:6379/0"
+      LIBRARY_DB: "/jellyfin_db/jellyfin.db"
+      SUBTITLES_PATH: "/subtitles"
+      METADATA_PATH: "/jellyfin_metadata"
+      TRANSCODE_CACHE_DIR: "/transcode_cache"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?rode python3 setup.py primeiro}"
+      SETUP_TOKEN: "${SETUP_TOKEN:-}"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data/config:/data/config
+      # Só a interface enxerga o hash da senha
+      - ./data/auth:/data/auth
+      - ./data/worker:/data/worker:ro
+      - "${TRANSCODE_CACHE:-./data/transcode}:/transcode_cache"
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    restart: unless-stopped
+    user: "${PUID:?rode python3 setup.py primeiro}:${PGID:?rode python3 setup.py primeiro}"
+    environment:
+      HOME: "/tmp"
+      SYNC_URL: "http://web:8000"
+      LIBRARY_DB: "/jellyfin_db/jellyfin.db"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:?rode python3 setup.py primeiro}"
+    depends_on:
+      - web
+    volumes:
+      - ./data/config:/data/config:ro
+      - ./data/worker:/data/worker
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  redis-data:

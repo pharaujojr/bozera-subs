@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trocar senha — Bozera Subs</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+  <meta name="theme-color" content="#090b0f">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090b0f;
+      --surface: #10141b;
+      --surface-raised: #161b24;
+      --border: #1f2631;
+      --accent: #4c8dff;
+      --accent-dim: #2b5fb8;
+      --text: #eef2f8;
+      --muted: #94a0b2;
+      --danger: #f0525b;
+      --danger-bg: #2a1615;
+      --radius: 10px;
+      --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle film-grain vignette backdrop */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 900px 600px at 50% 15%, rgba(76, 141, 255, 0.08), transparent 60%),
+        radial-gradient(ellipse 1200px 800px at 100% 100%, rgba(76, 141, 255, 0.04), transparent 60%);
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 40px 36px 32px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7);
+    }
+
+    .mark {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .mark svg { flex-shrink: 0; }
+
+    .mark-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .mark-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .mark-sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .lede {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 26px;
+      line-height: 1.5;
+    }
+
+    .field {
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    input {
+      padding: 11px 13px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0c0f14;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: var(--font);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent-dim);
+      box-shadow: 0 0 0 3px rgba(76, 141, 255, 0.12);
+    }
+
+    input::placeholder { color: #55555c; }
+
+    .submit {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.92rem;
+      font-weight: 700;
+      font-family: var(--font);
+      cursor: pointer;
+      margin-top: 6px;
+      transition: filter 0.15s, transform 0.05s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .submit:hover { filter: brightness(1.08); }
+    .submit:active { transform: scale(0.99); }
+    .submit:disabled { opacity: 0.55; cursor: not-allowed; filter: none; }
+
+    .error {
+      display: none;
+      align-items: flex-start;
+      gap: 8px;
+      color: #ff9d97;
+      background: var(--danger-bg);
+      border: 1px solid #4a2523;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .error.show { display: flex; }
+    .error svg { flex-shrink: 0; margin-top: 1px; }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(0, 0, 0, 0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 420px) {
+      .card { padding: 32px 24px 26px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="mark">
+    <img src="/assets/logo.svg" width="40" height="40" alt="" style="filter:drop-shadow(0 3px 8px rgba(76,141,255,.45))">
+    <div class="mark-text">
+      <div class="mark-title">Bozera Subs</div>
+      <div class="mark-sub">Legendas do Jellyfin</div>
+    </div>
+  </div>
+
+  <h1>Trocar senha</h1>
+  <p class="lede" id="lede">Escolha uma senha nova com pelo menos 10 caracteres.</p>
+
+  <div id="error" class="error">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v5M12 16h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <span id="error-text"></span>
+  </div>
+
+  <form id="form" autocomplete="on">
+    <input type="text" name="username" id="username" autocomplete="username" hidden>
+    <div class="field">
+      <label for="current">Senha atual</label>
+      <input type="password" id="current" autocomplete="current-password" required>
+    </div>
+    <div class="field">
+      <label for="new">Nova senha</label>
+      <input type="password" id="new" autocomplete="new-password" minlength="10" required>
+    </div>
+    <div class="field">
+      <label for="confirm">Repita a nova senha</label>
+      <input type="password" id="confirm" autocomplete="new-password" minlength="10" required>
+    </div>
+    <button type="submit" class="submit" id="btn">Salvar nova senha</button>
+  </form>
+</div>
+
+<script>
+const errorBox = document.getElementById('error');
+const errorText = document.getElementById('error-text');
+const btn = document.getElementById('btn');
+
+function showError(message) {
+  errorText.textContent = message;
+  errorBox.classList.add('show');
+}
+
+fetch('/api/check-auth', { credentials: 'include' }).then(r => r.json()).then(info => {
+  if (!info.authenticated) { window.location.href = '/login'; return; }
+  document.getElementById('username').value = info.user;
+});
+
+document.getElementById('form').addEventListener('submit', async event => {
+  event.preventDefault();
+  errorBox.classList.remove('show');
+  const current = document.getElementById('current').value;
+  const next = document.getElementById('new').value;
+  if (next !== document.getElementById('confirm').value) {
+    showError('A confirmação não bate com a nova senha.');
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/change-password', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: current, new_password: next }),
+    });
+    if (res.ok) {
+      window.location.href = '/';
+      return;
+    }
+    if (res.status === 401 && !(await fetch('/api/check-auth', { credentials: 'include' }).then(r => r.json())).authenticated) {
+      window.location.href = '/login';
+      return;
+    }
+    const err = await res.json().catch(() => ({}));
+    showError(typeof err.detail === 'string' ? err.detail : 'Não foi possível trocar a senha.');
+  } catch (e) {
+    showError('Erro de conexão: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

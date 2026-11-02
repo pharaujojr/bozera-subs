@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor de Legendas</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/logo.svg">
+  <meta name="theme-color" content="#090b0f">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #090b0f;
+      --surface: #10141b;
+      --surface-raised: #161b24;
+      --border: #1f2631;
+      --accent: #4c8dff;
+      --accent-dim: #2b5fb8;
+      --text: #eef2f8;
+      --muted: #94a0b2;
+      --muted-2: #5f6b7d;
+      --green: #2fd27a;
+      --green-bg: #16261f;
+      --red: #f0525b;
+      --red-bg: #2a1615;
+      --yellow: #f0a83a;
+      --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html { color-scheme: dark; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(180deg, #10141b, #0c0f14);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      height: 58px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .icon-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .icon-btn:hover { border-color: var(--accent-dim); }
+    .icon-btn.danger:hover { border-color: var(--red); color: var(--red); }
+
+    header h1 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+    }
+
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 22px 20px 60px;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    /* ── Video Player ── */
+    .player-container {
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.7);
+    }
+
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+      max-height: 68vh;
+      background: #000;
+    }
+
+    .player-container { position: relative; }
+
+    .prepare-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      background: rgba(3, 3, 3, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .prepare-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .prepare-box .spinner {
+      width: 22px;
+      height: 22px;
+      border-width: 3px;
+    }
+
+    .prepare-text {
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .prepare-hint {
+      font-size: 0.74rem;
+      color: var(--muted);
+      max-width: 280px;
+    }
+
+    .prepare-box .progress-track {
+      width: 220px;
+    }
+
+    .subtitle-overlay {
+      background: #030303;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 20px;
+      border-top: 1px solid #1c1c1c;
+    }
+
+    .subtitle-text {
+      text-align: center;
+      color: #fff;
+      font-size: 1.05rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .no-subtitle {
+      color: var(--muted-2);
+      font-size: 0.85rem;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .panel-title svg { color: var(--accent); flex-shrink: 0; }
+
+    /* ── Subtitle Selector ── */
+    .sub-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .sub-item {
+      padding: 9px 11px;
+      border-radius: 7px;
+      background: var(--surface-raised);
+      cursor: pointer;
+      font-size: 0.79rem;
+      border: 1px solid transparent;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .sub-item:hover { border-color: var(--accent-dim); }
+    .sub-item.selected { background: rgba(76, 141, 255, 0.14); border-color: var(--accent-dim); color: var(--accent); }
+
+    .sub-loading, .no-subs {
+      color: var(--muted);
+      font-size: 0.8rem;
+      padding: 8px 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Offset Controls ── */
+    .offset-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .offset-slider {
+      width: 100%;
+      height: 5px;
+      border-radius: 3px;
+      background: var(--surface-raised);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .offset-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 0 4px rgba(76, 141, 255, 0.15);
+    }
+
+    .offset-slider::-moz-range-thumb {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    .offset-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .offset-input {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: #0c0f14;
+      color: var(--text);
+      font-size: 0.88rem;
+      font-family: var(--font);
+      text-align: center;
+    }
+
+    .offset-input:focus { outline: none; border-color: var(--accent-dim); }
+
+    .offset-unit { font-size: 0.8rem; color: var(--muted); min-width: 14px; }
+
+    .offset-display {
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-align: center;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+    .offset-display.zero { color: var(--muted); }
+
+    /* ── Buttons ── */
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: var(--font);
+      transition: filter 0.15s, opacity 0.15s;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface-raised); color: var(--text); border: 1px solid var(--border); }
+
+    /* ── Job Status ── */
+    .job-status {
+      margin-top: 10px;
+      padding: 11px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      background: var(--surface-raised);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .job-status.running { border-left: 3px solid var(--yellow); }
+    .job-status.completed { border-left: 3px solid var(--green); background: var(--green-bg); color: #a3e0c2; }
+    .job-status.failed { border-left: 3px solid var(--red); background: var(--red-bg); color: #ff9d97; }
+
+    .status-row { display: flex; align-items: center; gap: 7px; }
+
+    .progress-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.3s ease;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      flex-shrink: 0;
+    }
+    .spinner.dark { border-color: rgba(0,0,0,0.2); border-top-color: #fff; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Mobile ── */
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+      .sidebar { flex-direction: row; flex-wrap: wrap; }
+      .panel { flex: 1; min-width: 220px; }
+    }
+
+    @media (max-width: 640px) {
+      header h1 { font-size: 0.85rem; }
+      main { padding: 14px 12px 40px; gap: 12px; }
+      video { max-height: 46vh; }
+      .sidebar { gap: 10px; }
+      .sub-list { max-height: 150px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <button class="icon-btn" onclick="goBack()" title="Voltar">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <h1 id="movie-title">Carregando…</h1>
+  <button class="icon-btn danger" onclick="logout()" title="Sair">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</header>
+
+<main>
+  <div class="player-container">
+    <div class="prepare-overlay" id="prepare-overlay" style="display:none">
+      <div class="prepare-box">
+        <span class="spinner"></span>
+        <div class="prepare-text" id="prepare-text">Preparando trilha de áudio…</div>
+        <div class="progress-track"><div class="progress-fill" id="prepare-progress" style="width:0%"></div></div>
+        <div class="prepare-hint">Esta legenda usa um áudio (AC3/EAC3/DTS) que o navegador não decodifica — convertendo uma vez para AAC.</div>
+      </div>
+    </div>
+    <video id="video-player" controls></video>
+    <div class="subtitle-overlay">
+      <div id="subtitle-display" class="subtitle-text">
+        <span class="no-subtitle">Nenhuma legenda carregada</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="panel">
+      <div class="panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 4h16v13H8l-4 4V4z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        Legenda
+      </div>
+      <div id="sub-selector" class="sub-list">
+        <div class="sub-loading"><span class="spinner"></span> Carregando…</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        Deslocamento
+      </div>
+      <div class="offset-group">
+        <div class="offset-display zero" id="offset-display">Sem deslocamento</div>
+        <input type="range" id="offset-slider" class="offset-slider" min="-5000" max="5000" value="0" step="100">
+        <div class="offset-input-group">
+          <input type="number" id="offset-input" class="offset-input" value="0" step="0.1" placeholder="0.0">
+          <span class="offset-unit">s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 12a9 9 0 1 1-3-6.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M21 3v6h-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Ações
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="sync-btn" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 12a9 9 0 1 1-3-6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M21 3v6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Sincronizar áudio
+        </button>
+        <button class="btn btn-secondary" id="save-offset-btn" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Salvar deslocamento
+        </button>
+      </div>
+      <div id="job-status-container"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const params = new URLSearchParams(location.search);
+const videoPath = params.get('video');
+const videoPlayer = document.getElementById('video-player');
+const subtitleDisplay = document.getElementById('subtitle-display');
+const offsetSlider = document.getElementById('offset-slider');
+const offsetInput = document.getElementById('offset-input');
+const offsetDisplay = document.getElementById('offset-display');
+const subSelector = document.getElementById('sub-selector');
+const syncBtn = document.getElementById('sync-btn');
+const saveOffsetBtn = document.getElementById('save-offset-btn');
+const movieTitle = document.getElementById('movie-title');
+const jobStatusContainer = document.getElementById('job-status-container');
+
+let currentSubtitle = null;
+let subtitles = [];
+let parsedCues = [];
+let offsetMs = 0;
+let selectedSubtitlePath = null;
+
+function goBack() { history.back(); }
+
+function logout() {
+  fetch('/api/logout', { method: 'POST', credentials: 'include' }).then(() => {
+    window.location.href = '/login';
+  });
+}
+
+const prepareOverlay = document.getElementById('prepare-overlay');
+const prepareText = document.getElementById('prepare-text');
+const prepareProgress = document.getElementById('prepare-progress');
+
+async function loadVideo() {
+  if (!videoPath) {
+    subtitleDisplay.innerHTML = '<span class="no-subtitle">Caminho do vídeo não fornecido</span>';
+    return;
+  }
+  const fileName = videoPath.split('/').pop();
+  movieTitle.textContent = decodeURIComponent(fileName);
+
+  let status;
+  try {
+    const res = await fetch(`/api/video/status?path=${encodeURIComponent(videoPath)}`, { credentials: 'include' });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) throw new Error(await res.text());
+    status = await res.json();
+  } catch (e) {
+    subtitleDisplay.innerHTML = `<span class="no-subtitle">Erro ao verificar vídeo: ${esc(e.message)}</span>`;
+    return;
+  }
+
+  if (!status.needs_transcode || status.ready) {
+    videoPlayer.src = '/api/video?path=' + encodeURIComponent(videoPath);
+    return;
+  }
+
+  // Audio needs converting before playback will have sound.
+  prepareOverlay.style.display = 'flex';
+  try {
+    const res = await fetch(`/api/video/prepare?path=${encodeURIComponent(videoPath)}`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) throw new Error(await res.text());
+    const job = await res.json();
+
+    if (job.ready) {
+      prepareOverlay.style.display = 'none';
+      videoPlayer.src = '/api/video?path=' + encodeURIComponent(videoPath);
+      return;
+    }
+
+    await pollPrepareJob(job.job_id);
+    prepareOverlay.style.display = 'none';
+    videoPlayer.src = '/api/video?path=' + encodeURIComponent(videoPath);
+  } catch (e) {
+    prepareText.textContent = 'Falha ao preparar áudio';
+    prepareProgress.parentElement.style.display = 'none';
+  }
+}
+
+function pollPrepareJob(jobId) {
+  return new Promise((resolve, reject) => {
+    const poller = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/sync/status/${jobId}`, { credentials: 'include' });
+        if (res.status === 401) { clearInterval(poller); window.location.href = '/login'; return; }
+        if (!res.ok) throw new Error('Job não encontrado');
+        const job = await res.json();
+
+        if (job.status === 'pending' || job.status === 'running') {
+          const pct = job.progress || 0;
+          prepareText.textContent = `Convertendo áudio — ${pct}%`;
+          prepareProgress.style.width = pct + '%';
+        } else if (job.status === 'completed') {
+          clearInterval(poller);
+          resolve();
+        } else {
+          clearInterval(poller);
+          reject(new Error(job.error || 'Falha desconhecida'));
+        }
+      } catch (e) {
+        clearInterval(poller);
+        reject(e);
+      }
+    }, 1500);
+  });
+}
+
+async function loadSubtitles() {
+  subSelector.innerHTML = '<div class="sub-loading"><span class="spinner"></span> Carregando…</div>';
+
+  try {
+    const res = await fetch(`/api/subtitles?video_path=${encodeURIComponent(videoPath)}`, { credentials: 'include' });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+
+    subtitles = data.all || [];
+
+    if (!subtitles.length) {
+      subSelector.innerHTML = '<div class="no-subs">Nenhuma legenda encontrada</div>';
+      return;
+    }
+
+    subSelector.innerHTML = '';
+    subtitles.forEach((sub, idx) => {
+      const item = document.createElement('div');
+      item.className = 'sub-item';
+      item.textContent = sub.display || sub.path;
+      item.onclick = () => selectSubtitle(idx);
+      subSelector.appendChild(item);
+    });
+
+    selectSubtitle(0);
+  } catch (e) {
+    subSelector.innerHTML = `<div class="no-subs">${esc(e.message)}</div>`;
+  }
+}
+
+async function selectSubtitle(idx) {
+  document.querySelectorAll('.sub-item').forEach((el, i) => {
+    el.classList.toggle('selected', i === idx);
+  });
+
+  currentSubtitle = subtitles[idx];
+  selectedSubtitlePath = currentSubtitle.path;
+
+  try {
+    const res = await fetch(`/api/subtitle-content?path=${encodeURIComponent(currentSubtitle.path)}`, { credentials: 'include' });
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) throw new Error('Failed to load subtitle');
+    const data = await res.json();
+    currentSubtitle.content = data.content;
+  } catch (e) {
+    console.error('Error fetching subtitle:', e);
+  }
+
+  offsetMs = 0;
+  offsetSlider.value = 0;
+  offsetInput.value = 0;
+  updateOffsetDisplay();
+  parseCues();
+  renderSubtitle();
+  syncBtn.disabled = false;
+  saveOffsetBtn.disabled = true;
+}
+
+function parseCues() {
+  if (!currentSubtitle) return;
+
+  try {
+    const text = `${currentSubtitle.content || ''}`;
+    const lines = text.split('\n');
+    parsedCues = [];
+
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      if (!line) { i++; continue; }
+
+      const timeMatch = line.match(
+        /(\d{1,2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{1,2}:\d{2}:\d{2}[.,]\d{3})/
+      );
+
+      if (timeMatch) {
+        const startMs = tsToMs(timeMatch[1]);
+        const endMs = tsToMs(timeMatch[2]);
+        const cueLines = [];
+        i++;
+        while (i < lines.length && lines[i].trim()) {
+          cueLines.push(lines[i]);
+          i++;
+        }
+        parsedCues.push({ startMs, endMs, text: stripFormatting(cueLines.join('\n')) });
+      } else {
+        i++;
+      }
+    }
+  } catch (e) {
+    console.error('Error parsing subtitles:', e);
+  }
+}
+
+function stripFormatting(text) {
+  return text
+    .replace(/\{[^}]*\}/g, '')   // ASS/SSA override codes: {\an8}, {\pos(400,570)}, {\c&HFFFFFF&}…
+    .replace(/<[^>]+>/g, '')      // HTML-style tags: <b>, <i>, <u>, <font color="...">
+    .replace(/[ \t]+/g, ' ')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
+
+function tsToMs(ts) {
+  const normalized = ts.replace(',', '.');
+  const [h, m, rest] = normalized.split(':');
+  const [s, ms] = rest.split('.');
+  return parseInt(h) * 3600000 + parseInt(m) * 60000 + parseInt(s) * 1000 + parseInt(ms);
+}
+
+function renderSubtitle() {
+  const currentTime = (videoPlayer.currentTime || 0) * 1000;
+  const cue = parsedCues.find(c => {
+    const adjustedStart = c.startMs + offsetMs;
+    const adjustedEnd = c.endMs + offsetMs;
+    return currentTime >= adjustedStart && currentTime < adjustedEnd;
+  });
+
+  if (cue) {
+    subtitleDisplay.innerHTML = `<span class="subtitle-text">${esc(cue.text)}</span>`;
+  } else {
+    subtitleDisplay.innerHTML = '<span class="no-subtitle">—</span>';
+  }
+}
+
+function updateOffsetDisplay() {
+  const sign = offsetMs >= 0 ? '+' : '';
+  const seconds = (offsetMs / 1000).toFixed(3);
+  offsetDisplay.textContent = offsetMs === 0 ? 'Sem deslocamento' : `${sign}${seconds}s`;
+  offsetDisplay.classList.toggle('zero', offsetMs === 0);
+}
+
+offsetSlider.addEventListener('input', (e) => {
+  offsetMs = parseInt(e.target.value);
+  offsetInput.value = (offsetMs / 1000).toFixed(1);
+  updateOffsetDisplay();
+  renderSubtitle();
+  saveOffsetBtn.disabled = offsetMs === 0;
+});
+
+offsetInput.addEventListener('input', (e) => {
+  const seconds = parseFloat(e.target.value) || 0;
+  offsetMs = Math.round(seconds * 1000);
+  offsetSlider.value = offsetMs;
+  updateOffsetDisplay();
+  renderSubtitle();
+  saveOffsetBtn.disabled = offsetMs === 0;
+});
+
+videoPlayer.addEventListener('timeupdate', renderSubtitle);
+
+saveOffsetBtn.addEventListener('click', async () => {
+  if (!selectedSubtitlePath || offsetMs === 0) return;
+
+  saveOffsetBtn.disabled = true;
+  const originalHTML = saveOffsetBtn.innerHTML;
+  saveOffsetBtn.innerHTML = '<span class="spinner"></span> Salvando…';
+
+  try {
+    const res = await fetch('/api/shift', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ subtitle_path: selectedSubtitlePath, offset_ms: offsetMs }),
+    });
+
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) throw new Error(await res.text());
+    const result = await res.json();
+
+    jobStatusContainer.innerHTML = `<div class="job-status completed">
+      <div class="status-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Salvo: ${esc(result.offset_label)}</div>
+    </div>`;
+
+    offsetMs = 0;
+    offsetSlider.value = 0;
+    offsetInput.value = 0;
+    updateOffsetDisplay();
+
+    setTimeout(() => { jobStatusContainer.innerHTML = ''; }, 3500);
+  } catch (e) {
+    jobStatusContainer.innerHTML = `<div class="job-status failed">Erro: ${esc(e.message)}</div>`;
+  } finally {
+    saveOffsetBtn.disabled = true;
+    saveOffsetBtn.innerHTML = originalHTML;
+  }
+});
+
+syncBtn.addEventListener('click', async () => {
+  if (!videoPath || !selectedSubtitlePath) return;
+
+  syncBtn.disabled = true;
+  const originalHTML = syncBtn.innerHTML;
+  syncBtn.innerHTML = '<span class="spinner dark"></span> Enviando…';
+
+  try {
+    const res = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ video_path: videoPath, subtitle_path: selectedSubtitlePath }),
+    });
+
+    if (res.status === 401) { window.location.href = '/login'; return; }
+    if (!res.ok) throw new Error(await res.text());
+    const job = await res.json();
+
+    pollJob(job.job_id, originalHTML);
+  } catch (e) {
+    jobStatusContainer.innerHTML = `<div class="job-status failed">Erro: ${esc(e.message)}</div>`;
+    syncBtn.disabled = false;
+    syncBtn.innerHTML = originalHTML;
+  }
+});
+
+function pollJob(jobId, originalBtnHTML) {
+  const poller = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/sync/status/${jobId}`, { credentials: 'include' });
+      if (res.status === 401) { clearInterval(poller); window.location.href = '/login'; return; }
+      if (!res.ok) throw new Error('Job not found');
+      const job = await res.json();
+
+      if (job.status === 'pending' || job.status === 'running') {
+        const pct = job.progress || 0;
+        const phase = pct >= 100 ? 'Calculando alinhamento…'
+                    : pct > 0   ? `Analisando áudio — ${pct}%`
+                                 : 'Iniciando…';
+        syncBtn.innerHTML = '<span class="spinner dark"></span> Sincronizando…';
+        jobStatusContainer.innerHTML = `
+          <div class="job-status running">
+            <div class="status-row">${esc(phase)}</div>
+            <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+          </div>`;
+      } else if (job.status === 'completed') {
+        clearInterval(poller);
+        jobStatusContainer.innerHTML = `<div class="job-status completed">
+          <div class="status-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Sincronizado com sucesso</div>
+        </div>`;
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = originalBtnHTML;
+        setTimeout(() => { jobStatusContainer.innerHTML = ''; }, 3500);
+      } else {
+        clearInterval(poller);
+        jobStatusContainer.innerHTML = `<div class="job-status failed">Erro: ${esc(job.error || 'desconhecido')}</div>`;
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = originalBtnHTML;
+      }
+    } catch (e) {
+      clearInterval(poller);
+      console.error('Poll error:', e);
+    }
+  }, 2000);
+}
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+(async () => {
+  loadVideo();
+  await loadSubtitles();
+})();
+</script>
+</body>
+</html>
