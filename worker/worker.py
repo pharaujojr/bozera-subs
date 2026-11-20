@@ -46,6 +46,8 @@ SYNC_TIMEOUT = 3600
 MAX_SUBTITLE_SIZE = 5 * 1024 * 1024
 RETRY_NOT_FOUND = 7 * 86400
 RETRY_ERROR = 86400
+# Última fala antes de 70% da duração do vídeo = legenda incompleta
+MIN_COVERAGE = 0.7
 # Português de Portugal só entra se não houver pt-BR em nenhuma fonte
 LANGUAGES = (
     {"suffix": "pt-BR", "lang": Language("por", "BR"), "subdl": "BR_PT", "subsource": "brazilian_portuguese"},
@@ -338,7 +340,9 @@ def download_opensubtitles(video: Path, title: str, year: int, language: dict) -
         for subtitle in usable[:3]:
             pool.download_subtitle(subtitle)
             if subtitle.content and subtitle.is_valid():
-                return subtitle.text
+                if covers_video(subtitle.text, video):
+                    return subtitle.text
+                continue
             failures += 1
         if failures:
             raise QuotaError("download vazio, provável limite diário")
@@ -393,8 +397,41 @@ def _same_movie(wanted: str, name: Optional[str], wanted_year: int, year: Option
     return abs((year or 0) - wanted_year) <= 1
 
 
-def _is_acceptable(text: Optional[str]) -> bool:
-    return bool(text) and text.count("-->") >= 50 and len(PT_WORDS.findall(text)) >= 5
+_durations: dict[str, Optional[float]] = {}
+_CUE_END = re.compile(r"-->\s*(\d+):(\d\d):(\d\d)")
+
+
+def video_duration(video: Path) -> Optional[float]:
+    key = str(video)
+    if key not in _durations:
+        try:
+            out = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", key],
+                capture_output=True, text=True, timeout=120,
+            ).stdout.strip()
+            _durations[key] = float(out) if out else None
+        except (subprocess.SubprocessError, ValueError, OSError):
+            _durations[key] = None
+    return _durations[key]
+
+
+def covers_video(text: str, video: Optional[Path]) -> bool:
+    """Legenda partida em CD1/CD2 acaba no meio do filme (Funny Games 1997: 43 de 109 min)."""
+    duration = video_duration(video) if video else None
+    if not duration:
+        return True
+    ends = [int(h) * 3600 + int(m) * 60 + int(s) for h, m, s in _CUE_END.findall(text)]
+    last = max(ends, default=0)
+    if last >= MIN_COVERAGE * duration:
+        return True
+    log.info("legenda incompleta recusada: última fala em %.0f de %.0f min (parte de CD1/CD2?)",
+             last / 60, duration / 60, extra={"video": video.name})
+    return False
+
+
+def _is_acceptable(text: Optional[str], video: Optional[Path] = None) -> bool:
+    return (bool(text) and text.count("-->") >= 50 and len(PT_WORDS.findall(text)) >= 5
+            and covers_video(text, video))
 
 
 def _release_tokens(text: str) -> set[str]:
@@ -439,7 +476,7 @@ def download_subdl(video: Path, title: str, year: int, language: dict, imdb: Opt
             text = _srt_from_zip(archive.content)
         except zipfile.BadZipFile:
             continue
-        if _is_acceptable(text):
+        if _is_acceptable(text, video):
             return text
         log.info("SubDL %s: legenda recusada no filtro de qualidade", language["suffix"], extra={"video": video.name})
     return None
@@ -484,7 +521,7 @@ def download_subsource(video: Path, title: str, year: int, language: dict, imdb:
             text = _srt_from_zip(archive.content)
         except zipfile.BadZipFile:
             continue
-        if _is_acceptable(text):
+        if _is_acceptable(text, video):
             return text
         log.info("SubSource %s: legenda recusada no filtro de qualidade", language["suffix"], extra={"video": video.name})
     return None
@@ -540,6 +577,8 @@ def run_sync(video: Path, raw: Path, output: Path) -> None:
 
 def process(video: Path, state: dict) -> str:
     local = find_local_source(video)
+    if local and not covers_video(read_subtitle(local[0]), video):
+        local = None
     if local:
         text, language = read_subtitle(local[0]), local[1]
         log.info("usando legenda local: %s", local[0].name, extra={"video": video.name})
