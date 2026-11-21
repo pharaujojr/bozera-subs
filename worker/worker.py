@@ -398,7 +398,8 @@ def _same_movie(wanted: str, name: Optional[str], wanted_year: int, year: Option
 
 
 _durations: dict[str, Optional[float]] = {}
-_CUE_END = re.compile(r"-->\s*(\d+):(\d\d):(\d\d)")
+# Início da fala: um fim de fala absurdo (00:43 --> 02:30) não pode fingir cobertura
+_CUE_START = re.compile(r"(\d+):(\d\d):(\d\d)[,.]\d+\s*-->")
 
 
 def video_duration(video: Path) -> Optional[float]:
@@ -420,7 +421,7 @@ def covers_video(text: str, video: Optional[Path]) -> bool:
     duration = video_duration(video) if video else None
     if not duration:
         return True
-    ends = [int(h) * 3600 + int(m) * 60 + int(s) for h, m, s in _CUE_END.findall(text)]
+    ends = [int(h) * 3600 + int(m) * 60 + int(s) for h, m, s in _CUE_START.findall(text)]
     last = max(ends, default=0)
     if last >= MIN_COVERAGE * duration:
         return True
